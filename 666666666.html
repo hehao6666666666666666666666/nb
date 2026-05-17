@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>药安智护 - 智能用药安全平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", "微软雅黑", Arial; }
+        body { background: linear-gradient(135deg, #f0f7ff 0%, #e6f0ff 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); overflow: hidden; }
+        .header { background: linear-gradient(90deg, #2c6ecb 0%, #4a89dc 100%); color: white; padding: 25px; text-align: center; }
+        .header h1 { font-size: 28px; margin-bottom: 8px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .main-content { padding: 30px; }
+        .section { margin-bottom: 35px; }
+        .section-title { color: #2c6ecb; font-size: 20px; margin-bottom: 15px; display: flex; align-items: center; }
+        .section-title svg { margin-right: 8px; width: 24px; height: 24px; }
+        /* 拍药盒识别区域 */
+        .scan-area { border: 2px dashed #b3d1ff; border-radius: 12px; padding: 20px; text-align: center; transition: all 0.3s; }
+        .scan-area:hover { border-color: #2c6ecb; background: #f8faff; }
+        .camera-placeholder { width: 100%; height: 280px; background: #f0f7ff; border-radius: 8px; margin: 15px 0; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+        .camera-placeholder img { width: 100%; height: 100%; object-fit: cover; display: none; }
+        .camera-placeholder .placeholder-text { color: #666; transition: 0.3s; }
+        .scan-area.active .camera-placeholder .placeholder-text { opacity: 0; }
+        .scan-area.active .camera-placeholder img { display: block; animation: fadeIn 0.5s; }
+        .scan-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 15px; }
+        .scan-btn { padding: 14px 30px; border: none; border-radius: 30px; font-size: 16px; cursor: pointer; transition: 0.3s; }
+        .camera-btn { background: #2c6ecb; color: white; }
+        .album-btn { background: #66b3ff; color: white; }
+        .scan-btn:hover { transform: translateY(-2px); }
+        .camera-btn:hover { background: #1a56b3; }
+        .album-btn:hover { background: #4da6ff; }
+        /* 识别结果区域 */
+        .scan-result { margin-top: 20px; padding: 20px; background: #f8faff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: none; animation: slideUp 0.5s; }
+        .result-item { display: flex; margin-bottom: 12px; }
+        .result-label { width: 120px; color: #666; }
+        .result-value { font-weight: 500; }
+        /* 用药提醒区域 */
+        .reminder-card { background: #fff8e6; border-left: 4px solid #ffc107; border-radius: 8px; padding: 20px; margin-top: 15px; }
+        .reminder-form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .reminder-form input { padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+        .reminder-form button { grid-column: 1 / -1; padding: 12px; background: #ffc107; color: #333; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; transition: 0.3s; }
+        .reminder-form button:hover { background: #e6ac00; }
+        .reminder-list { margin-top: 15px; }
+        .reminder-item { padding: 12px 15px; background: white; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .reminder-item .drug-name { font-weight: 500; }
+        .reminder-item .time { color: #666; font-size: 14px; }
+        /* 风险检测区域 */
+        .risk-card { background: #fff5f5; border-left: 4px solid #e74c3c; border-radius: 8px; padding: 20px; margin-top: 15px; }
+        .risk-drug-list { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+        .risk-drug-tag { padding: 8px 15px; background: #ffebee; border-radius: 20px; font-size: 14px; color: #c0392b; }
+        .risk-check-btn { padding: 12px 25px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; }
+        .risk-check-btn:hover { background: #c0392b; }
+        .risk-result { margin-top: 15px; padding: 15px; background: #ffebee; border-radius: 8px; display: none; }
+        .risk-result h4 { color: #e74c3c; margin-bottom: 8px; }
+        /* 动画 */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>药安智护</h1>
+            <p>AI智能识别 · 自动风险检测 · 精准用药提醒</p>
+        </div>
+
+        <!-- 主要内容 -->
+        <div class="main-content">
+            <!-- 1. 拍药盒识别 -->
+            <div class="section">
+                <div class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 7l-7 5 7 5V7z"></path>
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                    </svg>
+                    <h2>拍药盒识别药品</h2>
+                </div>
+                <div class="scan-area">
+                    <p>选择识别方式</p>
+                    <div class="camera-placeholder">
+                        <div class="placeholder-text">📷 对准药盒，自动识别</div>
+                        <img id="drug-img" src="https://via.placeholder.com/800x300?text=阿司匹林肠溶片" alt="药品图片">
+                    </div>
+                    <div class="scan-buttons">
+                        <button class="scan-btn camera-btn" onclick="openCamera()">打开相机</button>
+                        <button class="scan-btn album-btn" onclick="selectAlbum()">选择相册照片</button>
+                    </div>
+                    <!-- 识别结果 -->
+                    <div id="scan-result" class="scan-result">
+                        <div class="result-item">
+                            <div class="result-label">药品名称：</div>
+                            <div class="result-value" id="result-name">阿司匹林肠溶片</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">主要成分：</div>
+                            <div class="result-value" id="result-component">阿司匹林</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">用法用量：</div>
+                            <div class="result-value" id="result-dosage">1片/次，每日1次</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">最佳时间：</div>
+                            <div class="result-value" id="result-time">饭后服用</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 用药提醒 -->
+            <div class="section">
+                <div class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <h2>自动同步用药提醒</h2>
+                </div>
+                <div class="reminder-card">
+                    <p>识别药品后，系统已自动填充信息，可直接设置提醒</p>
+                    <div class="reminder-form">
+                        <input type="text" id="reminder-name" placeholder="药品名称" readonly>
+                        <input type="time" id="reminder-time" value="08:00">
+                        <input type="text" id="reminder-dosage" placeholder="剂量" readonly>
+                        <button onclick="addReminder()">设置每日提醒</button>
+                    </div>
+                    <div class="reminder-list" id="reminder-list"></div>
+                </div>
+            </div>
+
+            <!-- 3. 风险检测 -->
+            <div class="section">
+                <div class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
+                        <path d="M12 8v4l3 3"></path>
+                    </svg>
+                    <h2>多药联用风险检测</h2>
+                </div>
+                <div class="risk-card">
+                    <p>已识别药品将自动加入检测列表，系统会提示常见联用风险药物</p>
+                    <div class="risk-drug-list" id="risk-drug-list"></div>
+                    <div class="risk-result" id="risk-result">
+                        <h4>风险提示：</h4>
+                        <p id="risk-msg">阿司匹林肠溶片与布洛芬缓释胶囊、萘普生片可能增加胃黏膜损伤风险</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentDrug = null; // 当前识别的药品
+        let allDrugs = []; // 所有已识别药品
+        // 定义可能冲突的药物映射表
+        const conflictDrugsMap = {
+            "阿司匹林肠溶片": ["布洛芬缓释胶囊", "萘普生片"],
+            "布洛芬缓释胶囊": ["阿司匹林肠溶片", "双氯芬酸钠肠溶片"],
+            "萘普生片": ["阿司匹林肠溶片", "华法林钠片"]
+        };
+
+        // 打开相机
+        function openCamera() {
+            // 模拟申请相机权限
+            if (confirm("是否允许访问相机？")) {
+                scanDrug(); // 权限通过后执行识别
+            }
+        }
+
+        // 选择相册
+        function selectAlbum() {
+            // 模拟申请相册权限
+            if (confirm("是否允许访问相册？")) {
+                scanDrug(); // 权限通过后执行识别
+            }
+        }
+
+        // 拍药盒识别逻辑
+        function scanDrug() {
+            // 模拟识别结果
+            currentDrug = {
+                name: "阿司匹林肠溶片",
+                component: "阿司匹林",
+                dosage: "1片/次，每日1次",
+                time: "饭后服用",
+                img: "https://via.placeholder.com/800x300?text=阿司匹林肠溶片"
+            };
+            allDrugs.push(currentDrug);
+
+            // 更新识别结果区域
+            const scanResult = document.getElementById('scan-result');
+            document.getElementById('result-name').textContent = currentDrug.name;
+            document.getElementById('result-component').textContent = currentDrug.component;
+            document.getElementById('result-dosage').textContent = currentDrug.dosage;
+            document.getElementById('result-time').textContent = currentDrug.time;
+            document.querySelector('.scan-area').classList.add('active');
+            scanResult.style.display = 'block';
+
+            // 自动同步到用药提醒
+            document.getElementById('reminder-name').value = currentDrug.name;
+            document.getElementById('reminder-dosage').value = currentDrug.dosage;
+
+            // 自动同步到风险检测列表
+            const riskList = document.getElementById('risk-drug-list');
+            riskList.innerHTML += `<div class="risk-drug-tag">${currentDrug.name}</div>`;
+
+            // 显示可能冲突的药物
+            const conflictDrugs = conflictDrugsMap[currentDrug.name];
+            if (conflictDrugs && conflictDrugs.length > 0) {
+                const riskMsg = document.getElementById('risk-msg');
+                riskMsg.textContent = `${currentDrug.name}与${conflictDrugs.join('、')}可能有联用风险`;
+                document.getElementById('risk-result').style.display = 'block';
+            }
+        }
+
+        // 添加用药提醒
+        function addReminder() {
+            if (!currentDrug) return;
+            const time = document.getElementById('reminder-time').value;
+            const reminderList = document.getElementById('reminder-list');
+            reminderList.innerHTML += `
+                <div class="reminder-item">
+                    <div class="drug-name">${currentDrug.name} · ${currentDrug.dosage}</div>
+                    <div class="time">每日 ${time} 提醒</div>
+                </div>
+            `;
+            alert(`提醒设置成功！每日${time}将提醒服用${currentDrug.name}`);
+        }
+    </script>
+</body>
+</html>
